@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Email Header Analyzer</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --dark: #121212;
+            --darker: #0a0a0a;
+            --light: #e0e0e0;
+            --lighter: #f5f5f5;
+            --gray: #2d2d2d;
+            --danger: #e63946;
+            --success: #2a9d8f;
+            --warning: #ff9f1c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background-color: var(--dark);
+            color: var(--light);
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            color: var(--primary);
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            word-break: keep-all;
+        }
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1rem;
+            word-break: keep-all;
+        }
+        .tool-container {
+            background: var(--darker);
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .input-area {
+            margin-bottom: 2rem;
+        }
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 1px solid var(--gray);
+            border-radius: 5px;
+            font-family: monospace;
+            resize: vertical;
+            font-size: 0.9rem;
+            background-color: var(--gray);
+            color: var(--light);
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.5;
+        }
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            white-space: nowrap;
+        }
+        .btn:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
+        }
+        .results {
+            display: none;
+        }
+        .result-section {
+            margin-bottom: 2.5rem;
+        }
+        .result-title {
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gray);
+            word-break: keep-all;
+        }
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.2rem;
+        }
+        .result-card {
+            background: var(--gray);
+            border-radius: 5px;
+            padding: 1.2rem;
+            border-left: 4px solid var(--primary);
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        .card-title {
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+            color: var(--lighter);
+            word-break: keep-all;
+            font-size: 1.1rem;
+        }
+        .card-value {
+            font-family: monospace;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            color: var(--light);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+        .warning {
+            color: var(--warning);
+            font-weight: 600;
+        }
+        .danger {
+            color: var(--danger);
+            font-weight: 600;
+        }
+        .success {
+            color: var(--success);
+            font-weight: 600;
+        }
+        .received-chain {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .received-chain th {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.8rem;
+            text-align: left;
+            word-break: keep-all;
+            font-size: 0.95rem;
+        }
+        .received-chain td {
+            padding: 0.8rem;
+            border-bottom: 1px solid var(--gray);
+            color: var(--light);
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+        .received-chain tr:nth-child(even) {
+            background-color: var(--gray);
+        }
+        .spf-result, .dkim-result, .dmarc-result {
+            padding: 0.5rem;
+            border-radius: 3px;
+            display: inline-block;
+            word-break: keep-all;
+        }
+        .spf-pass, .dkim-pass, .dmarc-pass {
+            background-color: rgba(42, 157, 143, 0.2);
+            color: var(--success);
+        }
+        .spf-fail, .dkim-fail, .dmarc-fail {
+            background-color: rgba(230, 57, 70, 0.2);
+            color: var(--danger);
+        }
+        .spf-none, .dkim-none, .dmarc-none {
+            background-color: rgba(108, 117, 125, 0.2);
+            color: #a0a0a0;
+        }
+        #rawHeaders {
+            background-color: var(--gray);
+            padding: 1.2rem;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            color: var(--light);
+            border: 1px solid var(--gray);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+        .export-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .export-btn {
+            background-color: var(--gray);
+            color: var(--light);
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .export-btn:hover {
+            background-color: var(--primary);
+        }
+        .highlight-warning {
+            background-color: rgba(255, 159, 28, 0.1);
+            border-left: 4px solid var(--warning);
+        }
+        .highlight-danger {
+            background-color: rgba(230, 57, 70, 0.1);
+            border-left: 4px solid var(--danger);
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--gray);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+        .indicator-item {
+            margin-bottom: 0.6rem;
+            padding-left: 1.5rem;
+            position: relative;
+            word-break: break-word;
+        }
+        .indicator-item:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+        }
+        .indicator-severity {
+            font-weight: 600;
+            margin-right: 0.5rem;
+            word-break: keep-all;
+        }
+        .severity-critical {
+            color: var(--danger);
+        }
+        .severity-warning {
+            color: var(--warning);
+        }
+        .severity-info {
+            color: var(--primary);
+        }
+        .suspicious-indicators-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.2rem;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Email Header Analyzer</h1>
+            <p class="subtitle">Parse and analyze email headers for cybersecurity investigation</p>
+        </header>
+
+        <div class="tool-container">
+            <div class="input-area">
+                <textarea id="headerInput" placeholder="Paste your email headers here..."></textarea>
+                <button id="analyzeBtn" class="btn">Analyze Headers</button>
+            </div>
+
+            <div id="results" class="results">
+                <div class="result-section">
+                    <h2 class="result-title">Header Analysis Results</h2>
+                    
+                    <div class="result-grid">
+                        <div class="result-card">
+                            <div class="card-title">Sender Address</div>
+                            <div id="senderAddress" class="card-value"></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="card-title">SMTP Mail From</div>
+                            <div id="smtpMailFrom" class="card-value"></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="card-title">Return-Path</div>
+                            <div id="returnPath" class="card-value"></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="card-title">Original IP Address</div>
+                            <div id="originalIp" class="card-value"></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="card-title">First Received</div>
+                            <div id="firstReceived" class="card-value"></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="card-title">Authentication Results</div>
+                            <div id="authResults" class="card-value"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <h2 class="result-title">Security Verification</h2>
+                    
+                    <div class="result-grid">
+                        <div class="result-card">
+                            <div class="card-title">SPF Verification</div>
+                            <div id="spfResult" class="card-value"></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="card-title">DKIM Verification</div>
+                            <div id="dkimResult" class="card-value"></div>
+                        </div>
+                        <div class="result-card">
+                            <div class="card-title">DMARC Verification</div>
+                            <div id="dmarcResult" class="card-value"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <h2 class="result-title">Suspicious Indicators</h2>
+                    <div class="suspicious-indicators-grid" id="suspiciousIndicatorsGrid">
+                        <!-- Indicators will be populated here by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <h2 class="result-title">Received Chain</h2>
+                    <table id="receivedChain" class="received-chain">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%">#</th>
+                                <th style="width: 20%">From</th>
+                                <th style="width: 20%">By</th>
+                                <th style="width: 10%">With</th>
+                                <th style="width: 20%">Date</th>
+                                <th style="width: 15%">IP</th>
+                                <th style="width: 10%">Additional Info</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="result-section">
+                    <h2 class="result-title">Raw Headers</h2>
+                    <pre id="rawHeaders"></pre>
+                </div>
+
+                <div class="export-buttons">
+                    <button id="exportJson" class="export-btn">Export as JSON</button>
+                    <button id="exportText" class="export-btn">Export as Text</button>
+                    <button id="exportCsv" class="export-btn">Export as CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Performance optimization - debounce analysis for large inputs
+        let analyzeTimeout;
+        document.getElementById('headerInput').addEventListener('input', function() {
+            clearTimeout(analyzeTimeout);
+            if (this.value.length > 5000) {
+                analyzeTimeout = setTimeout(() => {
+                    document.getElementById('analyzeBtn').click();
+                }, 1000);
+            }
+        });
+
+        document.getElementById('analyzeBtn').addEventListener('click', function() {
+            const headerText = document.getElementById('headerInput').value.trim();
+            if (!headerText) {
+                alert('Please paste email headers to analyze');
+                return;
+            }
+            
+            try {
+                const analysis = analyzeHeaders(headerText);
+                displayResults(analysis);
+                document.getElementById('results').style.display = 'block';
+            } catch (error) {
+                alert('Error analyzing headers: ' + error.message);
+                console.error('Header analysis error:', error);
+            }
+        });
+
+        function analyzeHeaders(headerText) {
+            const headers = parseHeaders(headerText);
+            if (!headers || Object.keys(headers).length === 0) {
+                throw new Error('No valid headers found in the input');
+            }
+            
+            const analysis = {
+                headers: headers,
+                senderAddress: extractSenderAddress(headers),
+                smtpMailFrom: extractSmtpMailFrom(headers),
+                returnPath: extractReturnPath(headers),
+                originalIp: extractOriginalIp(headers),
+                firstReceived: extractFirstReceived(headers),
+                receivedChain: extractReceivedChain(headers),
+                authResults: extractAuthResults(headers),
+                spfResult: checkSpf(headers),
+                dkimResult: checkDkim(headers),
+                dmarcResult: checkDmarc(headers),
+                suspiciousIndicators: checkSuspiciousIndicators(headers)
+            };
+            
+            return analysis;
+        }
+
+        function parseHeaders(headerText) {
+            const lines = headerText.split('\n');
+            const headers = {};
+            let currentHeader = '';
+            let currentValue = '';
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trimEnd(); // Preserve leading whitespace for folded lines
+                
+                // Skip empty lines (end of headers)
+                if (!line && !currentHeader) break;
+                
+                // Check if this is a new header field
+                const headerMatch = line.match(/^([^\s:]+):\s*(.*)/);
+                
+                if (headerMatch) {
+                    // Save previous header if exists
+                    if (currentHeader) {
+                        headers[currentHeader] = currentValue.trim();
+                    }
+                    
+                    // Start new header
+                    currentHeader = headerMatch[1].trim();
+                    currentValue = headerMatch[2] || '';
+                } 
+                // Handle folded lines (start with whitespace)
+                else if (/^\s/.test(line) && currentHeader) {
+                    currentValue += ' ' + line.trim();
+                }
+                // Handle malformed headers (no colon)
+                else if (currentHeader) {
+                    currentValue += ' ' + line.trim();
+                }
+            }
+            
+            // Save the last header
+            if (currentHeader) {
+                headers[currentHeader] = currentValue.trim();
+            }
+            
+            return headers;
+        }
+
+        function extractSenderAddress(headers) {
+            if (!headers['From']) return 'Not found';
+            
+            const match = headers['From'].match(/<([^>]+)>/);
+            return match ? match[1] : headers['From'];
+        }
+
+        function extractSmtpMailFrom(headers) {
+            if (headers['Authentication-Results']) {
+                const match = headers['Authentication-Results'].match(/smtp\.mailfrom=([^\s;]+)/i);
+                if (match) return match[1];
+            }
+            
+            if (headers['X-MailFrom']) return headers['X-MailFrom'];
+            if (headers['Return-Path']) {
+                const match = headers['Return-Path'].match(/<([^>]+)>/);
+                return match ? match[1] : headers['Return-Path'];
+            }
+            if (headers['Envelope-From']) return headers['Envelope-From'];
+            
+            return 'Not found';
+        }
+
+        function extractReturnPath(headers) {
+            if (headers['Return-Path']) {
+                const match = headers['Return-Path'].match(/<([^>]+)>/);
+                return match ? match[1] : headers['Return-Path'];
+            }
+            return 'Not found';
+        }
+
+        function extractOriginalIp(headers) {
+            const receivedChain = extractReceivedChain(headers);
+            if (receivedChain.length > 0) {
+                return receivedChain[receivedChain.length - 1].ip || 'Not found';
+            }
+            return 'Not found';
+        }
+
+        function extractFirstReceived(headers) {
+            for (const key in headers) {
+                if (key.toLowerCase() === 'received') {
+                    return headers[key];
+                }
+            }
+            return 'Not found';
+        }
+
+        function extractReceivedChain(headers) {
+            const receivedChain = [];
+            
+            // First collect all Received headers in order
+            const receivedHeaders = [];
+            for (const key in headers) {
+                if (key.toLowerCase() === 'received') {
+                    // Handle multiple Received headers with same key
+                    if (Array.isArray(headers[key])) {
+                        receivedHeaders.push(...headers[key]);
+                    } else {
+                        receivedHeaders.push(headers[key]);
+                    }
+                }
+            }
+            
+            // Process in reverse order (from last to first)
+            for (let i = receivedHeaders.length - 1; i >= 0; i--) {
+                const received = receivedHeaders[i];
+                const chainItem = parseReceivedHeader(received);
+                receivedChain.push(chainItem);
+            }
+            
+            return receivedChain;
+        }
+
+        function parseReceivedHeader(received) {
+            // Improved Received header parsing
+            const fromMatch = received.match(/from\s+([^\s(]+(?:\s+\([^)]*\))?)/i) || 
+                             received.match(/from\s+\(([^)]*)\)/i);
+            
+            const byMatch = received.match(/by\s+([^\s(]+(?:\s+\([^)]*\))?)/i) || 
+                           received.match(/by\s+\(([^)]*)\)/i);
+            
+            const withMatch = received.match(/with\s+([^\s(;]+)/i);
+            const dateMatch = received.match(/([A-Za-z]{3},\s\d{1,2}\s[A-Za-z]{3}\s\d{4}\s\d{2}:\d{2}:\d{2}\s[+-]\d{4}|[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{2}:\d{2}:\d{2}\s\d{4})/i);
+            const ipMatch = received.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(\[[a-f0-9:]+\])/i);
+            const idMatch = received.match(/id\s+([^\s;]+)/i);
+            const forMatch = received.match(/for\s+([^;]+)/i);
+            
+            const chainItem = {
+                from: fromMatch ? fromMatch[1].replace(/^\(|\)$/g, '').trim() : 'Unknown',
+                by: byMatch ? byMatch[1].replace(/^\(|\)$/g, '').trim() : 'Unknown',
+                with: withMatch ? withMatch[1].trim() : 'Unknown',
+                date: dateMatch ? dateMatch[0].trim() : 'Unknown',
+                ip: ipMatch ? ipMatch[0].trim() : 'Unknown',
+                id: idMatch ? idMatch[1].trim() : null,
+                for: forMatch ? forMatch[1].trim() : null,
+                raw: received
+            };
+
+            // Detect TLS version if present
+            const tlsMatch = received.match(/TLSv(\d\.\d)/i);
+            if (tlsMatch) {
+                chainItem.tlsVersion = tlsMatch[1];
+                if (parseFloat(chainItem.tlsVersion) < 1.2) {
+                    chainItem.tlsWarning = "Outdated TLS version (v" + chainItem.tlsVersion + ")";
+                }
+            }
+
+            return chainItem;
+        }
+
+        function extractAuthResults(headers) {
+            if (headers['Authentication-Results']) {
+                return headers['Authentication-Results'];
+            }
+            if (headers['Received-SPF']) {
+                return headers['Received-SPF'];
+            }
+            return 'No authentication results found';
+        }
+
+        function checkSpf(headers) {
+            if (headers['Authentication-Results']) {
+                const spfMatch = headers['Authentication-Results'].match(/spf=([^\s;]+)/i);
+                if (spfMatch) {
+                    const result = spfMatch[1].toLowerCase();
+                    if (result === 'pass') return {result: 'pass', text: 'SPF check passed'};
+                    if (result === 'fail') return {result: 'fail', text: 'SPF check failed'};
+                    if (result === 'neutral') return {result: 'neutral', text: 'SPF neutral'};
+                    if (result === 'softfail') return {result: 'softfail', text: 'SPF softfail'};
+                }
+            }
+            
+            if (headers['Received-SPF']) {
+                const spfMatch = headers['Received-SPF'].match(/(pass|fail|neutral|softfail|none)/i);
+                if (spfMatch) {
+                    const result = spfMatch[1].toLowerCase();
+                    if (result === 'pass') return {result: 'pass', text: 'SPF check passed'};
+                    if (result === 'fail') return {result: 'fail', text: 'SPF check failed'};
+                    if (result === 'neutral') return {result: 'neutral', text: 'SPF neutral'};
+                    if (result === 'softfail') return {result: 'softfail', text: 'SPF softfail'};
+                }
+            }
+            
+            return {result: 'none', text: 'No SPF record found'};
+        }
+
+        function checkDkim(headers) {
+            if (headers['Authentication-Results']) {
+                const dkimMatch = headers['Authentication-Results'].match(/dkim=([^\s;]+)/i);
+                if (dkimMatch) {
+                    const result = dkimMatch[1].toLowerCase();
+                    if (result === 'pass') return {result: 'pass', text: 'DKIM signature valid'};
+                    if (result === 'fail') return {result: 'fail', text: 'DKIM signature invalid'};
+                }
+            }
+            
+            if (headers['DKIM-Signature']) {
+                return {result: 'none', text: 'DKIM signature present but not verified'};
+            }
+            
+            return {result: 'none', text: 'No DKIM signature found'};
+        }
+
+        function checkDmarc(headers) {
+            if (headers['Authentication-Results']) {
+                const dmarcMatch = headers['Authentication-Results'].match(/dmarc=([^\s;]+)/i);
+                if (dmarcMatch) {
+                    const result = dmarcMatch[1].toLowerCase();
+                    if (result === 'pass') return {result: 'pass', text: 'DMARC check passed'};
+                    if (result === 'fail') return {result: 'fail', text: 'DMARC check failed'};
+                }
+            }
+            
+            return {result: 'none', text: 'No DMARC record found'};
+        }
+
+        function checkSuspiciousIndicators(headers) {
+            const indicators = [];
+            
+            if (!headers['Received']) {
+                indicators.push({type: 'Headers', severity: 'critical', message: 'Missing Received headers - possible forgery'});
+            }
+            if (!headers['Message-ID']) {
+                indicators.push({type: 'Headers', severity: 'warning', message: 'Missing Message-ID header'});
+            }
+            if (!headers['Date']) {
+                indicators.push({type: 'Headers', severity: 'warning', message: 'Missing Date header'});
+            }
+
+            if (headers['X-Mailer']) {
+                const mailer = headers['X-Mailer'].toLowerCase();
+                if (mailer.includes('php')) indicators.push({type: 'Mailer', severity: 'warning', message: 'PHP script detected in X-Mailer'});
+                if (mailer.includes('spam')) indicators.push({type: 'Mailer', severity: 'warning', message: 'Contains "spam" in X-Mailer'});
+                if (!mailer.match(/microsoft|outlook|apple|mail/)) {
+                    indicators.push({type: 'Mailer', severity: 'warning', message: 'Uncommon mailer: ' + headers['X-Mailer']});
+                }
+            }
+            
+            if (headers['Received']) {
+                const received = headers['Received'].toLowerCase();
+                if (received.includes('localhost')) indicators.push({type: 'Received', severity: 'warning', message: 'Received from localhost'});
+                if (received.match(/(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/)) {
+                    indicators.push({type: 'Received', severity: 'warning', message: 'Received from private IP range'});
+                }
+                if (received.includes('unknown') || received.includes('invalid')) {
+                    indicators.push({type: 'Received', severity: 'warning', message: 'Suspicious Received header content'});
+                }
+            }
+            
+            if (headers['Message-ID']) {
+                const msgId = headers['Message-ID'];
+                if (!msgId.includes('@')) indicators.push({type: 'Message-ID', severity: 'critical', message: 'Invalid Message-ID format'});
+                if (msgId.match(/[0-9a-f]{32}/)) indicators.push({type: 'Message-ID', severity: 'critical', message: 'Message-ID appears to be MD5 hash (possible spam)'});
+                if (msgId.includes('example.com') || msgId.includes('test.com')) {
+                    indicators.push({type: 'Message-ID', severity: 'warning', message: 'Suspicious Message-ID domain'});
+                }
+                if (msgId.includes('.local>') || msgId.includes('localhost')) {
+                    indicators.push({
+                        type: 'Message-ID', 
+                        severity: 'warning', 
+                        message: `Suspicious local domain in Message-ID: "${msgId}"`
+                    });
+                }
+            }
+            
+            if (headers['Content-Type'] && !headers['Content-Type'].includes('charset=')) {
+                indicators.push({type: 'Content', severity: 'warning', message: 'Missing charset in Content-Type'});
+            }
+            
+            if (headers['X-Priority']) {
+                const priority = headers['X-Priority'];
+                if (priority === '1') indicators.push({type: 'Headers', severity: 'warning', message: 'High priority flag (common in phishing)'});
+                if (priority === '5') indicators.push({type: 'Headers', severity: 'info', message: 'Low priority flag'});
+            }
+            
+            const from = extractSenderAddress(headers);
+            const returnPath = extractReturnPath(headers);
+            if (from.includes('@') && returnPath.includes('@')) {
+                const fromDomain = from.split('@')[1];
+                const returnDomain = returnPath.split('@')[1];
+                if (fromDomain !== returnDomain) {
+                    indicators.push({type: 'Domain', severity: 'critical', message: `Mismatched From (${fromDomain}) and Return-Path (${returnDomain}) domains`});
+                }
+            }
+            
+            if (headers['X-Originating-IP']) {
+                const ip = headers['X-Originating-IP'];
+                if (ip.match(/(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/)) {
+                    indicators.push({
+                        type: 'Headers', 
+                        severity: 'warning', 
+                        message: `Internal IP found in X-Originating-IP: ${ip}`
+                    });
+                }
+            }
+            
+            const spf = checkSpf(headers);
+            if (spf.result === 'fail') indicators.push({type: 'SPF', severity: 'critical', message: 'SPF validation failed'});
+            if (spf.result === 'softfail') indicators.push({type: 'SPF', severity: 'warning', message: 'SPF softfail (suspicious)'});
+            
+            const dkim = checkDkim(headers);
+            if (dkim.result === 'fail') indicators.push({type: 'DKIM', severity: 'critical', message: 'DKIM validation failed'});
+            
+            const dmarc = checkDmarc(headers);
+            if (dmarc.result === 'fail') indicators.push({type: 'DMARC', severity: 'critical', message: 'DMARC validation failed'});
+            
+            if (headers['X-Forwarded-For'] || headers['X-Apparently-From']) {
+                indicators.push({type: 'Headers', severity: 'warning', message: 'Email appears to be auto-forwarded'});
+            }
+            
+            if (headers['Subject']) {
+                const subject = headers['Subject'].toLowerCase();
+                const suspiciousWords = ['urgent', 'password', 'verify', 'account', 'suspended', 'action required', 'security alert'];
+                const foundKeywords = suspiciousWords.filter(word => subject.includes(word));
+                
+                if (foundKeywords.length > 0) {
+                    indicators.push({
+                        type: 'Subject', 
+                        severity: 'warning', 
+                        message: `Subject contains suspicious keywords (${foundKeywords.join(', ')}): "${headers['Subject']}"`
+                    });
+                }
+            }
+
+            if (headers['Content-Disposition'] && 
+                headers['Content-Disposition'].toLowerCase().includes('attachment') &&
+                !headers['Content-Type'].toLowerCase().includes('multipart')) {
+                indicators.push({
+                    type: 'Content', 
+                    severity: 'warning', 
+                    message: 'Suspicious attachment without multipart content'
+                });
+            }
+            
+            return indicators;
+        }
+
+        document.getElementById('exportJson').addEventListener('click', function() {
+            try {
+                const analysis = analyzeHeaders(document.getElementById('headerInput').value);
+                const blob = new Blob([JSON.stringify(analysis, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'email-header-analysis.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Error exporting JSON: ' + error.message);
+                console.error('Export error:', error);
+            }
+        });
+
+        document.getElementById('exportText').addEventListener('click', function() {
+            try {
+                const analysis = analyzeHeaders(document.getElementById('headerInput').value);
+                let text = 'Email Header Analysis Report\n\n';
+                
+                text += `Sender: ${analysis.senderAddress}\n`;
+                text += `SMTP Mail From: ${analysis.smtpMailFrom}\n`;
+                text += `Return-Path: ${analysis.returnPath}\n`;
+                text += `Original IP: ${analysis.originalIp}\n`;
+                text += `First Received: ${analysis.firstReceived}\n`;
+                text += `SPF: ${analysis.spfResult.text}\n`;
+                text += `DKIM: ${analysis.dkimResult.text}\n`;
+                text += `DMARC: ${analysis.dmarcResult.text}\n\n`;
+                
+                text += `Suspicious Indicators:\n`;
+                analysis.suspiciousIndicators.forEach(ind => {
+                    text += `• [${ind.severity.toUpperCase()}] ${ind.type}: ${ind.message}\n`;
+                });
+                
+                text += `\nReceived Chain:\n`;
+                analysis.receivedChain.forEach((item, index) => {
+                    text += `${index + 1}. From: ${item.from}, By: ${item.by}, With: ${item.with}, Date: ${item.date}, IP: ${item.ip}`;
+                    if (item.tlsWarning) text += ` (${item.tlsWarning})`;
+                    if (item.timeGapWarning) text += ` (${item.timeGapWarning})`;
+                    text += '\n';
+                });
+                
+                text += `\nFull Headers:\n${JSON.stringify(analysis.headers, null, 2)}`;
+                
+                const blob = new Blob([text], {type: 'text/plain'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'email-header-analysis.txt';
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Error exporting text: ' + error.message);
+                console.error('Export error:', error);
+            }
+        });
+
+        document.getElementById('exportCsv').addEventListener('click', function() {
+            try {
+                const analysis = analyzeHeaders(document.getElementById('headerInput').value);
+                let csv = "Type,Severity,Message\n";
+                
+                analysis.suspiciousIndicators.forEach(ind => {
+                    csv += `"${ind.type}","${ind.severity}","${ind.message.replace(/"/g, '""')}"\n`;
+                });
+                
+                const blob = new Blob([csv], {type: 'text/csv'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'email-header-analysis.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Error exporting CSV: ' + error.message);
+                console.error('Export error:', error);
+            }
+        });
+
+        function displayResults(analysis) {
+            document.getElementById('senderAddress').textContent = analysis.senderAddress;
+            document.getElementById('smtpMailFrom').textContent = analysis.smtpMailFrom;
+            document.getElementById('returnPath').textContent = analysis.returnPath;
+            document.getElementById('originalIp').textContent = analysis.originalIp;
+            document.getElementById('firstReceived').textContent = analysis.firstReceived;
+            document.getElementById('authResults').textContent = analysis.authResults;
+            
+            const spfResult = document.getElementById('spfResult');
+            spfResult.textContent = analysis.spfResult.text;
+            spfResult.className = 'card-value spf-' + analysis.spfResult.result;
+            
+            const dkimResult = document.getElementById('dkimResult');
+            dkimResult.textContent = analysis.dkimResult.text;
+            dkimResult.className = 'card-value dkim-' + analysis.dkimResult.result;
+            
+            const dmarcResult = document.getElementById('dmarcResult');
+            dmarcResult.textContent = analysis.dmarcResult.text;
+            dmarcResult.className = 'card-value dmarc-' + analysis.dmarcResult.result;
+            
+            // Display suspicious indicators
+            const indicatorsGrid = document.getElementById('suspiciousIndicatorsGrid');
+            indicatorsGrid.innerHTML = '';
+            
+            if (analysis.suspiciousIndicators.length === 0) {
+                const noIndicatorsCard = document.createElement('div');
+                noIndicatorsCard.className = 'result-card';
+                noIndicatorsCard.innerHTML = `
+                    <div class="card-title">No Suspicious Indicators Found</div>
+                    <div class="card-value success">✓ No suspicious patterns detected in headers</div>
+                `;
+                indicatorsGrid.appendChild(noIndicatorsCard);
+            } else {
+                analysis.suspiciousIndicators.forEach(indicator => {
+                    const indicatorCard = document.createElement('div');
+                    indicatorCard.className = `result-card highlight-${indicator.severity === 'critical' ? 'danger' : 'warning'}`;
+                    
+                    const severityIcon = indicator.severity === 'critical' ? '❌' : '⚠️';
+                    const severityClass = indicator.severity === 'critical' ? 'danger' : 'warning';
+                    
+                    indicatorCard.innerHTML = `
+                        <div class="card-title">${indicator.type}</div>
+                        <div class="card-value">
+                            <span class="${severityClass}">${severityIcon} ${indicator.severity.toUpperCase()}:</span> ${indicator.message}
+                        </div>
+                    `;
+                    indicatorsGrid.appendChild(indicatorCard);
+                });
+            }
+            
+            // Display received chain
+            const receivedChainTable = document.querySelector('#receivedChain tbody');
+            receivedChainTable.innerHTML = '';
+            analysis.receivedChain.forEach((item, index) => {
+                const row = document.createElement('tr');
+                
+                let additionalInfo = [];
+                if (item.id) additionalInfo.push(`ID: ${item.id}`);
+                if (item.for) additionalInfo.push(`For: ${item.for}`);
+                if (item.tlsWarning) additionalInfo.push(item.tlsWarning);
+                if (item.timeGapWarning) additionalInfo.push(item.timeGapWarning);
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${item.from}</td>
+                    <td>${item.by}</td>
+                    <td>${item.with}</td>
+                    <td>${item.date}</td>
+                    <td>${item.ip}</td>
+                    <td>${additionalInfo.join(', ')}</td>
+                `;
+                receivedChainTable.appendChild(row);
+            });
+            
+            document.getElementById('rawHeaders').textContent = JSON.stringify(analysis.headers, null, 2);
+        }
+    </script>
+</body>
+</html>
